@@ -37,11 +37,12 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                 .requestMatchers("/api/auth/**").permitAll()
                 .requestMatchers("/auth/**").permitAll()
-                .requestMatchers(HttpMethod.GET, "/api/ai/status").permitAll()
+                .requestMatchers("/api/ai/**").permitAll()
                 .requestMatchers("/ws/**").permitAll()
                 .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
                 .requestMatchers("/api/admin/**").hasAnyRole("ADMIN", "SUPER_ADMIN")
                 .requestMatchers("/api/faculty/**").hasAnyRole("FACULTY", "ADMIN", "SUPER_ADMIN")
+                .requestMatchers("/api/users").hasAnyRole("ADMIN", "SUPER_ADMIN")
 
                 // Faculty dropdown for assignment (should not require full user management)
                 .requestMatchers(HttpMethod.GET, "/api/users/faculty").hasAnyRole("HOD", "PRINCIPAL", "COMMITTEE", "ADMIN", "SUPER_ADMIN")
@@ -50,7 +51,12 @@ public class SecurityConfig {
                 .requestMatchers("/api/users/**").hasAnyRole("ADMIN", "SUPER_ADMIN")
 
                 // Activity logs must be admin-only
+                .requestMatchers("/api/audit-logs").hasAnyRole("ADMIN", "SUPER_ADMIN")
                 .requestMatchers("/api/audit-logs/**").hasAnyRole("ADMIN", "SUPER_ADMIN")
+
+                // Notifications are for authenticated users
+                .requestMatchers("/api/notifications").authenticated()
+                .requestMatchers("/api/notifications/**").authenticated()
 
                 // Announcements
                 .requestMatchers(HttpMethod.POST, "/api/announcements/**").hasAnyRole("ADMIN", "SUPER_ADMIN", "HOD", "PRINCIPAL", "COMMITTEE")
