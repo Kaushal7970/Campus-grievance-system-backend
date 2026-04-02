@@ -6,6 +6,7 @@ import org.springframework.core.io.Resource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -26,11 +27,11 @@ import com.project.grievance.dto.ChatMessageView;
 import com.project.grievance.dto.CommentView;
 import com.project.grievance.dto.CreateChatMessageRequest;
 import com.project.grievance.dto.CreateCommentRequest;
-import com.project.grievance.dto.GrievanceView;
 import com.project.grievance.dto.EscalationHistoryView;
+import com.project.grievance.dto.GrievanceView;
 import com.project.grievance.dto.StatusHistoryView;
-import com.project.grievance.enums.Priority;
 import com.project.grievance.enums.EscalationLevel;
+import com.project.grievance.enums.Priority;
 import com.project.grievance.model.Attachment;
 import com.project.grievance.model.Grievance;
 import com.project.grievance.model.GrievanceComment;
@@ -39,6 +40,7 @@ import com.project.grievance.model.GrievanceStatusHistory;
 import com.project.grievance.repository.GrievanceEscalationHistoryRepository;
 import com.project.grievance.repository.GrievanceStatusHistoryRepository;
 import com.project.grievance.service.AttachmentMapper;
+import com.project.grievance.service.AuditLogService;
 import com.project.grievance.service.GrievanceChatMessageMapper;
 import com.project.grievance.service.GrievanceCollaborationService;
 import com.project.grievance.service.GrievanceCommentMapper;
@@ -46,10 +48,9 @@ import com.project.grievance.service.GrievanceEscalationHistoryMapper;
 import com.project.grievance.service.GrievanceMapper;
 import com.project.grievance.service.GrievanceService;
 import com.project.grievance.service.GrievanceStatusHistoryMapper;
-import com.project.grievance.service.AuditLogService;
 
-import lombok.RequiredArgsConstructor;
 import jakarta.servlet.http.HttpServletRequest;
+import lombok.RequiredArgsConstructor;
 
 @RestController
 @RequestMapping("/api/grievance")
@@ -82,6 +83,7 @@ public class GrievanceController {
 
     // CREATE
     @PostMapping("/create")
+       @PreAuthorize("hasRole('STUDENT') or hasRole('ADMIN') or hasRole('SUPER_ADMIN')")
     public GrievanceView create(@RequestBody Grievance g, HttpServletRequest http) {
         if (g.getPriority() == null) {
             g.setPriority(Priority.LOW);
