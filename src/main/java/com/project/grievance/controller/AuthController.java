@@ -6,6 +6,7 @@ import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -17,13 +18,14 @@ import com.project.grievance.dto.ForgotPasswordRequest;
 import com.project.grievance.dto.RegisterRequest;
 import com.project.grievance.dto.ResetPasswordRequest;
 import com.project.grievance.model.User;
-import com.project.grievance.service.AuthService;
 import com.project.grievance.service.AuditLogService;
+import com.project.grievance.service.AuthService;
 
-import jakarta.validation.Valid;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
 
 @RestController
+@CrossOrigin(origins = "*")
 @RequestMapping("/api/auth")
 public class AuthController {
 
