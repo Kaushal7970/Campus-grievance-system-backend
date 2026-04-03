@@ -3,6 +3,8 @@ package com.project.grievance.model;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import java.time.Instant;
+import java.util.Locale;
+import java.util.Objects;
 
 @Entity
 @Table(name = "users")
@@ -65,7 +67,7 @@ public class User {
     }
 
     public void setEmail(String email) {
-        this.email = email;
+        this.email = normalizeEmailValue(email);
     }
 
     public String getPassword() {
@@ -77,11 +79,11 @@ public class User {
     }
 
     public String getRole() {
-        return role;
+        return normalizeRoleValue(role);
     }
 
     public void setRole(String role) {
-        this.role = role;
+        this.role = normalizeRoleValue(role);
     }
 
     public int getFailedLoginAttempts() {
@@ -106,5 +108,40 @@ public class User {
 
     public void setLastLoginAt(Instant lastLoginAt) {
         this.lastLoginAt = lastLoginAt;
+    }
+
+    public boolean normalizeStoredFields() {
+        String normalizedEmail = normalizeEmailValue(this.email);
+        String normalizedRole = normalizeRoleValue(this.role);
+        boolean changed = !Objects.equals(this.email, normalizedEmail)
+                || !Objects.equals(this.role, normalizedRole);
+        this.email = normalizedEmail;
+        this.role = normalizedRole;
+        return changed;
+    }
+
+    @PrePersist
+    @PreUpdate
+    public void preSaveNormalize() {
+        normalizeStoredFields();
+    }
+
+    private static String normalizeEmailValue(String email) {
+        if (email == null) {
+            return null;
+        }
+        String normalized = email.trim().toLowerCase(Locale.ROOT);
+        return normalized.isBlank() ? null : normalized;
+    }
+
+    private static String normalizeRoleValue(String role) {
+        if (role == null) {
+            return null;
+        }
+        String normalized = role.trim().toUpperCase(Locale.ROOT);
+        while (normalized.startsWith("ROLE_")) {
+            normalized = normalized.substring("ROLE_".length());
+        }
+        return normalized.isBlank() ? null : normalized;
     }
 }
