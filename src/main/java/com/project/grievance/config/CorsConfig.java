@@ -26,7 +26,7 @@ public class CorsConfig {
             public void addCorsMappings(@NonNull CorsRegistry registry) {
                 String allowedOriginsProperty = environment.getProperty(
                         "app.cors.allowed-origins",
-                    "https://campus-grievance-system-frontend.onrender.com,https://grievance-frontend.onrender.com,http://localhost:5173,http://localhost:3000,http://localhost:3001,http://localhost:3002"
+                    "https://*.onrender.com,https://campus-grievance-system-frontend.onrender.com,https://grievance-frontend.onrender.com,http://localhost:5173,http://localhost:3000,http://localhost:3001,http://localhost:3002"
                 );
             String[] allowedOrigins = Objects.requireNonNull(
                 Arrays.stream(allowedOriginsProperty.split(","))
