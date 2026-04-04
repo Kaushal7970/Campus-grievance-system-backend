@@ -1,11 +1,13 @@
 package com.project.grievance.repository;
 
-import com.project.grievance.model.User;
-import org.springframework.data.jpa.repository.*;
+import java.util.List;
+import java.util.Optional;
+
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
-import java.util.Optional;
-import java.util.List;
+import com.project.grievance.model.User;
 
 public interface UserRepository extends JpaRepository<User, Long> {
 
@@ -13,4 +15,6 @@ public interface UserRepository extends JpaRepository<User, Long> {
     Optional<User> findByEmail(@Param("email") String email);
 
     List<User> findByRoleIgnoreCase(String role);
+
+    Optional<User> findFirstByRoleIgnoreCaseOrderByIdAsc(String role);
 }

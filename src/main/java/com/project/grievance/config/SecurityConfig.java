@@ -103,6 +103,11 @@ public class SecurityConfig {
                 .requestMatchers(new AntPathRequestMatcher("/swagger-ui/**"), new AntPathRequestMatcher("/v3/api-docs/**")).permitAll()
                 .requestMatchers(new AntPathRequestMatcher("/api/admin/**")).hasAnyRole("ADMIN", "SUPER_ADMIN")
                 .requestMatchers(new AntPathRequestMatcher("/api/faculty/**")).hasAnyRole("FACULTY", "ADMIN", "SUPER_ADMIN")
+
+                // Profile updates (controller enforces: self OR admin)
+                .requestMatchers(new AntPathRequestMatcher("/api/users/*/update", "PUT")).authenticated()
+                .requestMatchers(new AntPathRequestMatcher("/api/users/*/change-password", "PUT")).authenticated()
+
                 .requestMatchers(new AntPathRequestMatcher("/api/users")).hasAnyRole("ADMIN", "SUPER_ADMIN")
 
                 // Faculty dropdown for assignment (should not require full user management)
@@ -110,10 +115,6 @@ public class SecurityConfig {
 
                 // User management must be admin-only
                 .requestMatchers(new AntPathRequestMatcher("/api/users/**")).hasAnyRole("ADMIN", "SUPER_ADMIN")
-
-                // Activity logs must be admin-only
-                .requestMatchers(new AntPathRequestMatcher("/api/audit-logs")).hasAnyRole("ADMIN", "SUPER_ADMIN")
-                .requestMatchers(new AntPathRequestMatcher("/api/audit-logs/**")).hasAnyRole("ADMIN", "SUPER_ADMIN")
 
                 // Notifications are for authenticated users
                 .requestMatchers(new AntPathRequestMatcher("/api/notifications")).authenticated()

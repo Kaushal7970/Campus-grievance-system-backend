@@ -1,11 +1,13 @@
 package com.project.grievance.service;
 
-import com.project.grievance.model.User;
-import com.project.grievance.repository.UserRepository;
-import lombok.RequiredArgsConstructor;
+import java.util.List;
+
 import org.springframework.stereotype.Service;
 
-import java.util.List;
+import com.project.grievance.model.User;
+import com.project.grievance.repository.UserRepository;
+
+import lombok.RequiredArgsConstructor;
 
 @Service
 @RequiredArgsConstructor
@@ -39,9 +41,9 @@ public class UserService {
 
         User user = getById(id);
 
-        // 🔥 ADMIN DELETE BLOCK (DOUBLE SAFETY)
-        if ("ADMIN".equalsIgnoreCase(user.getRole())) {
-            throw new RuntimeException("Admin cannot be deleted");
+        // 🔥 Privileged accounts delete block (DOUBLE SAFETY)
+        if ("ADMIN".equalsIgnoreCase(user.getRole()) || "SUPER_ADMIN".equalsIgnoreCase(user.getRole())) {
+            throw new RuntimeException("Privileged user cannot be deleted");
         }
 
         repo.deleteById(id);

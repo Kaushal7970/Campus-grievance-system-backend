@@ -1,13 +1,16 @@
 package com.project.grievance.repository;
 
-import com.project.grievance.model.Notification;
+import java.util.List;
+
 import org.springframework.data.jpa.repository.JpaRepository;
 
-import java.util.List;
+import com.project.grievance.model.Notification;
 
 public interface NotificationRepository extends JpaRepository<Notification, Long> {
 
 	List<Notification> findByRecipientEmailOrderByCreatedAtDesc(String recipientEmail);
 
 	long countByRecipientEmailAndReadAtIsNull(String recipientEmail);
+
+	void deleteByGrievanceId(Long grievanceId);
 }

@@ -39,7 +39,6 @@ import com.project.grievance.model.GrievanceStatusHistory;
 import com.project.grievance.repository.GrievanceEscalationHistoryRepository;
 import com.project.grievance.repository.GrievanceStatusHistoryRepository;
 import com.project.grievance.service.AttachmentMapper;
-import com.project.grievance.service.AuditLogService;
 import com.project.grievance.service.GrievanceChatMessageMapper;
 import com.project.grievance.service.GrievanceCollaborationService;
 import com.project.grievance.service.GrievanceCommentMapper;
@@ -48,7 +47,6 @@ import com.project.grievance.service.GrievanceMapper;
 import com.project.grievance.service.GrievanceService;
 import com.project.grievance.service.GrievanceStatusHistoryMapper;
 
-import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 
 @RestController
@@ -60,7 +58,6 @@ public class GrievanceController {
     private final GrievanceCollaborationService collaborationService;
     private final GrievanceStatusHistoryRepository statusHistoryRepository;
     private final GrievanceEscalationHistoryRepository escalationHistoryRepository;
-    private final AuditLogService auditLogService;
 
     private static String currentEmail() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
@@ -82,7 +79,7 @@ public class GrievanceController {
     // CREATE
     @PostMapping("/create")
        @PreAuthorize("hasRole('STUDENT') or hasRole('ADMIN') or hasRole('SUPER_ADMIN')")
-    public GrievanceView create(@RequestBody Grievance g, HttpServletRequest http) {
+    public GrievanceView create(@RequestBody Grievance g) {
         if (g.getPriority() == null) {
             g.setPriority(Priority.LOW);
         }
@@ -98,7 +95,6 @@ public class GrievanceController {
         }
 
         Grievance saved = service.save(g);
-        auditLogService.log(currentEmail(), "GRIEVANCE_CREATE", "GRIEVANCE", String.valueOf(saved.getId()), saved.getComplaintCode(), http);
         return GrievanceMapper.toView(saved);
     }
 
@@ -151,17 +147,15 @@ public class GrievanceController {
 
     // UPDATE STATUS
     @PutMapping("/update/{id}")
-    public GrievanceView updateStatus(@PathVariable Long id, @RequestParam String status, HttpServletRequest http) {
+    public GrievanceView updateStatus(@PathVariable Long id, @RequestParam String status) {
         Grievance updated = service.updateStatus(id, status);
-        auditLogService.log(currentEmail(), "GRIEVANCE_STATUS", "GRIEVANCE", String.valueOf(id), status, http);
         return GrievanceMapper.toView(updated);
     }
 
     // ASSIGN
     @PutMapping("/assign/{id}")
-    public GrievanceView assign(@PathVariable Long id, @RequestParam String facultyEmail, HttpServletRequest http) {
+    public GrievanceView assign(@PathVariable Long id, @RequestParam String facultyEmail) {
         Grievance updated = service.assign(id, facultyEmail);
-        auditLogService.log(currentEmail(), "GRIEVANCE_ASSIGN", "GRIEVANCE", String.valueOf(id), facultyEmail, http);
         return GrievanceMapper.toView(updated);
     }
 
@@ -170,11 +164,9 @@ public class GrievanceController {
     public GrievanceView updateWithRemarks(
             @PathVariable Long id,
             @RequestParam String status,
-            @RequestParam(required = false) String remarks,
-            HttpServletRequest http
+            @RequestParam(required = false) String remarks
     ) {
         Grievance updated = service.updateWithRemarks(id, status, remarks);
-        auditLogService.log(currentEmail(), "GRIEVANCE_REMARKS", "GRIEVANCE", String.valueOf(id), status, http);
         return GrievanceMapper.toView(updated);
     }
 
@@ -197,8 +189,7 @@ public class GrievanceController {
     public GrievanceView manualEscalate(
             @PathVariable Long id,
             @RequestParam("level") String level,
-            @RequestParam(value = "reason", required = false) String reason,
-            HttpServletRequest http
+            @RequestParam(value = "reason", required = false) String reason
     ) {
         if (!hasAnyRole("HOD", "PRINCIPAL", "ADMIN", "SUPER_ADMIN")) {
             throw new IllegalArgumentException("Access denied");
@@ -206,13 +197,12 @@ public class GrievanceController {
 
         EscalationLevel to = EscalationLevel.valueOf(String.valueOf(level).toUpperCase());
         Grievance updated = service.escalate(id, to, currentEmail(), false, reason);
-        auditLogService.log(currentEmail(), "GRIEVANCE_ESCALATE", "GRIEVANCE", String.valueOf(id), to.name(), http);
         return GrievanceMapper.toView(updated);
     }
 
     // COMMENTS
     @PostMapping("/{id}/comments")
-    public CommentView addComment(@PathVariable Long id, @RequestBody CreateCommentRequest request, HttpServletRequest http) {
+        public CommentView addComment(@PathVariable Long id, @RequestBody CreateCommentRequest request) {
         String email = currentEmail();
         boolean internalOnly = request.isInternalOnly()
                 && hasAnyRole("FACULTY", "HOD", "COMMITTEE", "ADMIN", "SUPER_ADMIN");
@@ -222,7 +212,6 @@ public class GrievanceController {
                 request.getMessage(),
                 internalOnly
         );
-        auditLogService.log(email, "GRIEVANCE_COMMENT", "GRIEVANCE", String.valueOf(id), null, http);
         return GrievanceCommentMapper.toView(saved);
     }
 
@@ -238,14 +227,13 @@ public class GrievanceController {
 
     // LIVE CHAT (non-AI, human-to-human)
     @PostMapping("/{id}/chat")
-    public ChatMessageView sendChat(@PathVariable Long id, @RequestBody CreateChatMessageRequest request, HttpServletRequest http) {
+    public ChatMessageView sendChat(@PathVariable Long id, @RequestBody CreateChatMessageRequest request) {
         String email = currentEmail();
         if (email == null) {
             throw new IllegalArgumentException("Unauthorized");
         }
 
         var saved = collaborationService.addChatMessage(id, email, request.getMessage());
-        auditLogService.log(email, "GRIEVANCE_CHAT", "GRIEVANCE", String.valueOf(id), null, http);
         return GrievanceChatMessageMapper.toView(saved);
     }
 
@@ -259,10 +247,9 @@ public class GrievanceController {
 
     // ATTACHMENTS
     @PostMapping("/{id}/attachments")
-    public AttachmentView uploadAttachment(@PathVariable Long id, @RequestParam("file") MultipartFile file, HttpServletRequest http) {
+    public AttachmentView uploadAttachment(@PathVariable Long id, @RequestParam("file") MultipartFile file) {
         String email = currentEmail();
         Attachment a = collaborationService.uploadAttachment(id, email == null ? "UNKNOWN" : email, file);
-        auditLogService.log(email, "GRIEVANCE_ATTACHMENT", "GRIEVANCE", String.valueOf(id), a.getOriginalFileName(), http);
         return AttachmentMapper.toView(a);
     }
 

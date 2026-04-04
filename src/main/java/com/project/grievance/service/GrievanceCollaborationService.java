@@ -10,6 +10,9 @@ import java.util.UUID;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -30,6 +33,7 @@ public class GrievanceCollaborationService {
     private final GrievanceChatMessageRepository chatRepository;
     private final AttachmentRepository attachmentRepository;
     private final GrievanceRealtimePublisher realtimePublisher;
+    private final NotificationService notificationService;
 
     private final String uploadDir;
 
@@ -39,6 +43,7 @@ public class GrievanceCollaborationService {
             GrievanceChatMessageRepository chatRepository,
             AttachmentRepository attachmentRepository,
             GrievanceRealtimePublisher realtimePublisher,
+            NotificationService notificationService,
             @Value("${app.upload.dir:uploads}") String uploadDir
     ) {
         this.grievanceRepository = grievanceRepository;
@@ -46,7 +51,39 @@ public class GrievanceCollaborationService {
         this.chatRepository = chatRepository;
         this.attachmentRepository = attachmentRepository;
         this.realtimePublisher = realtimePublisher;
+        this.notificationService = notificationService;
         this.uploadDir = uploadDir;
+    }
+
+    private static boolean hasAnyRole(String... roles) {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null) return false;
+        for (GrantedAuthority a : auth.getAuthorities()) {
+            String v = a.getAuthority();
+            for (String r : roles) {
+                if (v.equalsIgnoreCase("ROLE_" + r)) return true;
+            }
+        }
+        return false;
+    }
+
+    private void notifyStudentIfStaffUpdated(Grievance grievance, String updateSummary) {
+        if (grievance == null) return;
+        String studentEmail = grievance.getStudentEmail();
+        if (studentEmail == null || studentEmail.isBlank()) return;
+
+        boolean isStaff = hasAnyRole("FACULTY", "HOD", "PRINCIPAL", "COMMITTEE", "ADMIN", "SUPER_ADMIN");
+        if (!isStaff) return;
+
+        String code = grievance.getComplaintCode() != null && !grievance.getComplaintCode().isBlank()
+                ? grievance.getComplaintCode()
+                : String.valueOf(grievance.getId());
+
+        String msg = updateSummary == null || updateSummary.isBlank()
+                ? ("Complaint updated: " + code)
+                : ("Complaint updated: " + code + " • " + updateSummary);
+
+        notificationService.sendToUser(studentEmail, "COMPLAINT_UPDATED", msg, grievance.getId());
     }
 
     public GrievanceComment addComment(Long grievanceId, String authorEmail, String message, boolean internalOnly) {
@@ -60,6 +97,11 @@ public class GrievanceCollaborationService {
         comment.setInternalOnly(internalOnly);
         GrievanceComment saved = commentRepository.save(comment);
         realtimePublisher.publishGrievanceEvent(grievanceId, "COMMENT_ADDED");
+
+        // Internal-only comments are staff notes; do not notify the student.
+        if (!internalOnly) {
+            notifyStudentIfStaffUpdated(grievance, "New comment added");
+        }
         return saved;
     }
 
@@ -77,6 +119,8 @@ public class GrievanceCollaborationService {
         chat.setMessage(message);
         GrievanceChatMessage saved = chatRepository.save(chat);
         realtimePublisher.publishGrievanceChatEvent(grievanceId, saved.getId());
+
+        notifyStudentIfStaffUpdated(grievance, "New message received");
         return saved;
     }
 
@@ -113,6 +157,8 @@ public class GrievanceCollaborationService {
             a.setUploadedByEmail(uploadedByEmail);
             Attachment saved = attachmentRepository.save(a);
             realtimePublisher.publishGrievanceEvent(grievanceId, "ATTACHMENT_ADDED");
+
+            notifyStudentIfStaffUpdated(grievance, "New attachment uploaded");
             return saved;
         } catch (IOException e) {
             throw new RuntimeException("Failed to store file", e);

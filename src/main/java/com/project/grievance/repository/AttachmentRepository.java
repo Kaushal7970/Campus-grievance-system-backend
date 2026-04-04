@@ -9,4 +9,6 @@ import com.project.grievance.model.Attachment;
 public interface AttachmentRepository extends JpaRepository<Attachment, Long> {
 
     List<Attachment> findByGrievanceIdOrderByUploadedAtDesc(Long grievanceId);
+
+    void deleteByGrievanceId(Long grievanceId);
 }

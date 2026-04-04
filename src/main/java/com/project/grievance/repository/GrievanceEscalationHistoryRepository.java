@@ -9,4 +9,6 @@ import com.project.grievance.model.GrievanceEscalationHistory;
 public interface GrievanceEscalationHistoryRepository extends JpaRepository<GrievanceEscalationHistory, Long> {
 
     List<GrievanceEscalationHistory> findByGrievanceIdOrderByTriggeredAtAsc(Long grievanceId);
+
+    void deleteByGrievanceId(Long grievanceId);
 }

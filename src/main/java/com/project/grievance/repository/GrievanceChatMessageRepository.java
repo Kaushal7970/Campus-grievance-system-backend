@@ -9,4 +9,6 @@ import com.project.grievance.model.GrievanceChatMessage;
 public interface GrievanceChatMessageRepository extends JpaRepository<GrievanceChatMessage, Long> {
 
     List<GrievanceChatMessage> findByGrievanceIdOrderByCreatedAtAsc(Long grievanceId);
+
+    void deleteByGrievanceId(Long grievanceId);
 }
