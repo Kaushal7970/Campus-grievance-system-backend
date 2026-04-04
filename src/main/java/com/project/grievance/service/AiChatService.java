@@ -3,6 +3,7 @@ package com.project.grievance.service;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -221,32 +222,42 @@ public class AiChatService {
     }
 
     public Map<String, Object> status() {
-        if ("openai".equalsIgnoreCase(provider)) {
-            boolean enabled = openAiApiKey != null && !openAiApiKey.isBlank();
+        try {
+            String p = provider == null ? "" : provider.trim();
+
+            Map<String, Object> out = new HashMap<>();
+            out.put("provider", p);
+
+            if ("openai".equalsIgnoreCase(p)) {
+                boolean enabled = openAiApiKey != null && !openAiApiKey.isBlank();
+                out.put("enabled", enabled);
+                out.put("model", openAiModel == null ? "" : openAiModel);
+                out.put("baseUrl", openAiBaseUrl == null ? "" : openAiBaseUrl);
+                return out;
+            }
+
+            if ("gemini".equalsIgnoreCase(p)) {
+                boolean enabled = geminiApiKey != null && !geminiApiKey.isBlank();
+                out.put("enabled", enabled);
+                out.put("model", geminiModel == null ? "" : geminiModel);
+                out.put("baseUrl", geminiBaseUrl == null ? "" : geminiBaseUrl);
+                return out;
+            }
+
+            out.put("enabled", false);
+            out.put("model", "");
+            out.put("baseUrl", "");
+            return out;
+        } catch (Exception ex) {
+            log.warn("AI status endpoint failed", ex);
             return Map.of(
-                    "provider", provider,
-                    "enabled", enabled,
-                    "model", openAiModel,
-                    "baseUrl", openAiBaseUrl
+                    "provider", provider == null ? "" : provider,
+                    "enabled", false,
+                    "model", "",
+                    "baseUrl", "",
+                    "error", "AI_STATUS_FAILED"
             );
         }
-
-        if ("gemini".equalsIgnoreCase(provider)) {
-            boolean enabled = geminiApiKey != null && !geminiApiKey.isBlank();
-            return Map.of(
-                    "provider", provider,
-                    "enabled", enabled,
-                    "model", geminiModel,
-                    "baseUrl", geminiBaseUrl
-            );
-        }
-
-        return Map.of(
-                "provider", provider,
-                "enabled", false,
-                "model", "",
-                "baseUrl", ""
-        );
     }
 
     private String geminiGenerateText(String prompt, double temperature) throws Exception {
