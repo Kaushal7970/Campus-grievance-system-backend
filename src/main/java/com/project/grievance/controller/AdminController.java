@@ -4,7 +4,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -14,7 +13,6 @@ import com.project.grievance.service.GrievanceService;
 import lombok.RequiredArgsConstructor;
 
 @RestController
-@CrossOrigin(origins = "*")
 @RequestMapping("/api/admin")
 @RequiredArgsConstructor
 public class AdminController {

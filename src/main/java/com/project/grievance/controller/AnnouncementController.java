@@ -7,7 +7,6 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.validation.annotation.Validated;
-import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -25,7 +24,6 @@ import com.project.grievance.repository.AnnouncementRepository;
 import com.project.grievance.service.AnnouncementRealtimePublisher;
 
 @RestController
-@CrossOrigin(origins = "*")
 @RequestMapping("/api/announcements")
 public class AnnouncementController {
 

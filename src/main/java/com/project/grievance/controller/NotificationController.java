@@ -7,7 +7,6 @@ import java.util.Map;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -23,7 +22,6 @@ import com.project.grievance.service.NotificationService;
 import lombok.RequiredArgsConstructor;
 
 @RestController
-@CrossOrigin(origins = "*")
 @RequestMapping("/api/notifications")
 @RequiredArgsConstructor
 public class NotificationController {

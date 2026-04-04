@@ -39,7 +39,9 @@ public class CorsConfig {
                         .allowedOriginPatterns(allowedOrigins)
                         .allowedMethods("*")
                     .allowedHeaders("*")
-                    .allowCredentials(true);
+                    // We use JWT via Authorization header, not cookies.
+                    // Keeping credentials disabled avoids invalid CORS combinations with wildcard origins.
+                    .allowCredentials(false);
             }
         };
     }

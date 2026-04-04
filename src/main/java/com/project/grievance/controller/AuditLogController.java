@@ -2,7 +2,6 @@ package com.project.grievance.controller;
 
 import java.util.List;
 
-import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -15,7 +14,6 @@ import lombok.RequiredArgsConstructor;
 @RestController
 @RequestMapping("/api/audit-logs")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "*")
 public class AuditLogController {
 
     private final AuditLogRepository repo;
