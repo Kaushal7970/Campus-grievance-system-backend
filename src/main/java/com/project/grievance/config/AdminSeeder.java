@@ -21,9 +21,9 @@ public class AdminSeeder implements CommandLineRunner {
     public AdminSeeder(
             UserRepository userRepository,
             PasswordEncoder passwordEncoder,
-            @Value("${app.seed-admin.enabled:true}") boolean seedAdminEnabled,
-            @Value("${app.seed-admin.email:kaushal@456}") String seedAdminEmail,
-            @Value("${app.seed-admin.password:Kaushal@7970}") String seedAdminPassword
+            @Value("${app.seed-admin.enabled:false}") boolean seedAdminEnabled,
+            @Value("${app.seed-admin.email:}") String seedAdminEmail,
+            @Value("${app.seed-admin.password:}") String seedAdminPassword
     ) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
