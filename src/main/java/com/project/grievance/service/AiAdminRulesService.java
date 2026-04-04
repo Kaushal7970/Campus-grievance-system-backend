@@ -1,5 +1,6 @@
 package com.project.grievance.service;
 
+import java.util.LinkedHashMap;
 import java.time.LocalDateTime;
 import java.util.Map;
 
@@ -29,17 +30,23 @@ public class AiAdminRulesService {
 
     @Transactional(readOnly = true)
     public Map<String, Object> getRulesView() {
+        // NOTE: Map.of(...) does not allow null values.
+        // updatedAt may legitimately be null when rules are not configured yet.
         return repo.findTopByOrderByIdDesc()
-            .<Map<String, Object>>map(r -> Map.of(
-                "rules", r.getRules() == null ? "" : r.getRules(),
-                "updatedAt", r.getUpdatedAt(),
-                "updatedByEmail", r.getUpdatedByEmail() == null ? "" : r.getUpdatedByEmail()
-            ))
-                .orElse(Map.of(
-                        "rules", "",
-                        "updatedAt", null,
-                        "updatedByEmail", ""
-                ));
+                .<Map<String, Object>>map(r -> {
+                    Map<String, Object> view = new LinkedHashMap<>();
+                    view.put("rules", r.getRules() == null ? "" : r.getRules());
+                    view.put("updatedAt", r.getUpdatedAt());
+                    view.put("updatedByEmail", r.getUpdatedByEmail() == null ? "" : r.getUpdatedByEmail());
+                    return view;
+                })
+                .orElseGet(() -> {
+                    Map<String, Object> view = new LinkedHashMap<>();
+                    view.put("rules", "");
+                    view.put("updatedAt", null);
+                    view.put("updatedByEmail", "");
+                    return view;
+                });
     }
 
     @Transactional
@@ -55,10 +62,10 @@ public class AiAdminRulesService {
         entity.setUpdatedByEmail(updatedByEmail == null ? "" : updatedByEmail);
         AiAdminRules saved = repo.save(entity);
 
-        return Map.of(
-                "rules", saved.getRules() == null ? "" : saved.getRules(),
-                "updatedAt", saved.getUpdatedAt(),
-                "updatedByEmail", saved.getUpdatedByEmail() == null ? "" : saved.getUpdatedByEmail()
-        );
+        Map<String, Object> view = new LinkedHashMap<>();
+        view.put("rules", saved.getRules() == null ? "" : saved.getRules());
+        view.put("updatedAt", saved.getUpdatedAt());
+        view.put("updatedByEmail", saved.getUpdatedByEmail() == null ? "" : saved.getUpdatedByEmail());
+        return view;
     }
 }
