@@ -12,9 +12,9 @@ import jakarta.persistence.Table;
 
 @Entity
 @Table(name = "audit_logs", indexes = {
-        @Index(name = "idx_audit_actor", columnList = "actorEmail"),
-        @Index(name = "idx_audit_created", columnList = "createdAt"),
-        @Index(name = "idx_audit_resource", columnList = "resourceType,resourceId")
+    @Index(name = "idx_audit_actor", columnList = "actor_email"),
+    @Index(name = "idx_audit_created", columnList = "created_at"),
+    @Index(name = "idx_audit_resource", columnList = "resource_type,resource_id")
 })
 public class AuditLog {
 
