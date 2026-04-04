@@ -1,10 +1,23 @@
-FROM eclipse-temurin:25-jdk AS build
+FROM eclipse-temurin:25 AS build
+
+WORKDIR /workspace
+
+# Copy wrapper + pom first for better Docker layer caching
+COPY .mvn/ .mvn/
+COPY mvnw pom.xml ./
+
+RUN chmod +x mvnw \
+	&& ./mvnw -q -DskipTests dependency:go-offline
+
+# Copy sources last
+COPY src/ src/
+
+RUN ./mvnw -q -DskipTests clean package
+
+FROM eclipse-temurin:25-jre
 
 WORKDIR /app
-COPY . .
-RUN chmod +x mvnw && ./mvnw -q clean package -DskipTests
+COPY --from=build /workspace/target/*.jar ./app.jar
 
-FROM eclipse-temurin:25-jdk
-COPY --from=build /app/target/*.jar app.jar
-
-ENTRYPOINT ["java","-jar","/app.jar"]
+EXPOSE 8080
+ENTRYPOINT ["java","-jar","app.jar"]
