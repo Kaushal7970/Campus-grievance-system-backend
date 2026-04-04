@@ -11,6 +11,7 @@ import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.Resource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
@@ -19,6 +20,7 @@ import org.springframework.web.client.RestClientResponseException;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.project.grievance.config.EscalationProperties;
 import com.project.grievance.dto.AiBotResponse;
 import com.project.grievance.dto.AiChatResponse;
 
@@ -41,6 +43,12 @@ public class AiChatService {
     private final String geminiModel;
     private final String geminiApiVersion;
 
+    private final EscalationProperties escalationProperties;
+
+    private final String projectKnowledge;
+
+    private final AiAdminRulesService aiAdminRulesService;
+
     public AiChatService(
             ObjectMapper objectMapper,
             @Value("${app.ai.provider:openai}") String provider,
@@ -50,7 +58,10 @@ public class AiChatService {
             @Value("${app.ai.gemini.base-url:https://generativelanguage.googleapis.com}") String geminiBaseUrl,
             @Value("${app.ai.gemini.api-key:}") String geminiApiKey,
                 @Value("${app.ai.gemini.model:gemini-1.5-flash}") String geminiModel,
-                @Value("${app.ai.gemini.api-version:v1}") String geminiApiVersion
+                @Value("${app.ai.gemini.api-version:v1}") String geminiApiVersion,
+                EscalationProperties escalationProperties,
+                AiAdminRulesService aiAdminRulesService,
+                @Value("${app.ai.knowledge-resource:classpath:ai/knowledge.md}") Resource knowledgeResource
     ) {
         this.objectMapper = objectMapper;
         this.provider = provider == null ? "openai" : provider.trim();
@@ -64,7 +75,64 @@ public class AiChatService {
         this.geminiModel = geminiModel;
         this.geminiApiVersion = geminiApiVersion == null ? "v1" : geminiApiVersion.trim();
 
+        this.escalationProperties = escalationProperties;
+        this.aiAdminRulesService = aiAdminRulesService;
+
+        this.projectKnowledge = loadKnowledge(knowledgeResource);
+
         this.restClient = RestClient.builder().build();
+    }
+
+    private String loadKnowledge(Resource resource) {
+        if (resource == null) return "";
+        try {
+            if (!resource.exists()) return "";
+            try (var in = resource.getInputStream()) {
+                return new String(in.readAllBytes(), StandardCharsets.UTF_8).trim();
+            }
+        } catch (Exception ex) {
+            log.warn("Failed to load AI knowledge resource", ex);
+            return "";
+        }
+    }
+
+    private String systemContextForProject() {
+        StringBuilder sb = new StringBuilder();
+
+        sb.append("You are an assistant for a Campus Grievance Management System web app. ");
+        sb.append("Be concise, practical, and explain steps in simple language. ");
+        sb.append("You do NOT have access to live database records. ");
+        sb.append("If asked for private complaint details (exact status/history/assignee), ask the user to log in and check the dashboard. ");
+        sb.append("Never ask for passwords, OTPs, JWT tokens, or API keys.\n\n");
+
+        if (escalationProperties != null) {
+            sb.append("System configuration: ");
+            sb.append("escalationEnabled=").append(escalationProperties.isEnabled());
+            sb.append(", facultyDays=").append(escalationProperties.getFacultyDays());
+            sb.append(", hodDays=").append(escalationProperties.getHodDays());
+            sb.append(", principalDays=").append(escalationProperties.getPrincipalDays());
+            sb.append(", adminDays=").append(escalationProperties.getAdminDays());
+            sb.append(".\n\n");
+        }
+
+        if (projectKnowledge != null && !projectKnowledge.isBlank()) {
+            sb.append("Project knowledge (authoritative for this app):\n");
+            sb.append(projectKnowledge);
+            sb.append("\n\n");
+        }
+
+        try {
+            String adminRules = aiAdminRulesService == null ? "" : aiAdminRulesService.getRulesText();
+            if (adminRules != null && !adminRules.isBlank()) {
+                sb.append("Admin-configured rules (highest priority):\n");
+                sb.append(adminRules.trim());
+                sb.append("\n\n");
+            }
+        } catch (Exception ex) {
+            log.warn("Failed to load admin AI rules", ex);
+        }
+
+        return sb.toString();
     }
 
     public AiChatResponse chat(String userMessage) {
@@ -90,9 +158,10 @@ public class AiChatService {
                                 Map.of(
                                         "role", "system",
                                         "content",
-                                        "You are a university helpdesk assistant. Return ONLY valid JSON with keys: response, category, priority, suggested_solution. " +
-                                                "category must be one of: ACADEMIC, HOSTEL, INFRASTRUCTURE, FACULTY_BEHAVIOR, ADMINISTRATION. " +
-                                                "priority must be one of: LOW, MEDIUM, HIGH, CRITICAL."
+                            systemContextForProject() +
+                                "Task: classify and suggest action for a grievance. Return ONLY valid JSON with keys: response, category, priority, suggested_solution. " +
+                                "category must be one of: ACADEMIC, HOSTEL, INFRASTRUCTURE, FACULTY_BEHAVIOR, ADMINISTRATION. " +
+                                "priority must be one of: LOW, MEDIUM, HIGH, CRITICAL."
                                 ),
                                 Map.of(
                                         "role", "user",
@@ -133,7 +202,8 @@ public class AiChatService {
                 String prompt = "You are a university helpdesk assistant. Return ONLY valid JSON with keys: response, category, priority, suggested_solution. " +
                         "category must be one of: ACADEMIC, HOSTEL, INFRASTRUCTURE, FACULTY_BEHAVIOR, ADMINISTRATION. " +
                         "priority must be one of: LOW, MEDIUM, HIGH, CRITICAL." +
-                        "\n\nUser: " + userMessage;
+                    "\n\n" + systemContextForProject() +
+                    "User: " + userMessage;
 
                 String content = geminiGenerateText(prompt, 0.2);
                 JsonNode parsed = objectMapper.readTree(content);
@@ -172,7 +242,10 @@ public class AiChatService {
                         "messages", new Object[] {
                                 Map.of(
                                         "role", "system",
-                                        "content", "You are a helpful campus assistant chatbot. Be concise, clear, and safe."
+                            "content",
+                            systemContextForProject() +
+                                "You are a helpful campus assistant chatbot for this grievance system. " +
+                                "Be concise, clear, and safe."
                                 ),
                                 Map.of(
                                         "role", "user",
@@ -207,7 +280,8 @@ public class AiChatService {
 
             try {
                 String prompt = "You are a helpful campus assistant chatbot. Be concise, clear, and safe." +
-                        "\n\nUser: " + userMessage;
+                    "\n\n" + systemContextForProject() +
+                    "User: " + userMessage;
                 String content = geminiGenerateText(prompt, 0.6);
                 if (content.isBlank()) {
                     return new AiBotResponse("I couldn't generate a response right now. Please try again.");

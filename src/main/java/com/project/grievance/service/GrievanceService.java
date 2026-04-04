@@ -12,6 +12,7 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
+import com.project.grievance.config.EscalationProperties;
 import com.project.grievance.enums.EscalationLevel;
 import com.project.grievance.model.Grievance;
 import com.project.grievance.model.GrievanceEscalationHistory;
@@ -42,6 +43,7 @@ public class GrievanceService {
     private final GrievanceRealtimePublisher realtimePublisher;
     private final NotificationService notificationService;
     private final UserRepository userRepository;
+    private final EscalationProperties escalationProperties;
 
     private static final Map<EscalationLevel, String> ESCALATION_STATUS = new EnumMap<>(EscalationLevel.class);
 
@@ -246,15 +248,24 @@ public class GrievanceService {
     }
 
     public EscalationLevel desiredEscalationLevelForAgeDays(long ageDays) {
-        if (ageDays >= 10) return EscalationLevel.ADMIN;
-        if (ageDays >= 7) return EscalationLevel.PRINCIPAL;
-        if (ageDays >= 5) return EscalationLevel.HOD;
-        if (ageDays >= 3) return EscalationLevel.FACULTY;
+        long adminDays = Math.max(0, escalationProperties.getAdminDays());
+        long principalDays = Math.max(0, escalationProperties.getPrincipalDays());
+        long hodDays = Math.max(0, escalationProperties.getHodDays());
+        long facultyDays = Math.max(0, escalationProperties.getFacultyDays());
+
+        if (ageDays >= adminDays) return EscalationLevel.ADMIN;
+        if (ageDays >= principalDays) return EscalationLevel.PRINCIPAL;
+        if (ageDays >= hodDays) return EscalationLevel.HOD;
+        if (ageDays >= facultyDays) return EscalationLevel.FACULTY;
         return EscalationLevel.NONE;
     }
 
     public void autoEscalateIfNeeded(Grievance g) {
         if (g == null) return;
+
+        if (!escalationProperties.isEnabled()) {
+            return;
+        }
 
         String status = String.valueOf(g.getStatus() == null ? "" : g.getStatus()).toUpperCase(Locale.ROOT);
         if (status.equals("RESOLVED") || status.equals("CLOSED")) {
