@@ -1,5 +1,6 @@
 package com.project.grievance.service;
 
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import com.project.grievance.model.AuditLog;
@@ -16,6 +17,7 @@ public class AuditLogService {
         this.repository = repository;
     }
 
+    @Async
     public void log(
             String actorEmail,
             String action,
