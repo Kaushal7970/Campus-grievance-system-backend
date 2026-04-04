@@ -30,17 +30,6 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(status).body(errorBody(status, msg, request));
     }
 
-    @ExceptionHandler(RuntimeException.class)
-    public ResponseEntity<Map<String, Object>> handleRuntime(RuntimeException ex, HttpServletRequest request) {
-        String msg = ex.getMessage() == null ? "Internal Server Error" : ex.getMessage();
-
-        // Narrow mapping: only obvious "not found" cases become 404; everything else stays 500.
-        HttpStatus status = msg.toLowerCase().contains("not found") ? HttpStatus.NOT_FOUND : HttpStatus.INTERNAL_SERVER_ERROR;
-        String safeMessage = status == HttpStatus.INTERNAL_SERVER_ERROR ? "Internal Server Error" : msg;
-
-        return ResponseEntity.status(status).body(errorBody(status, safeMessage, request));
-    }
-
     private static Map<String, Object> errorBody(HttpStatus status, String message, HttpServletRequest request) {
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("timestamp", Instant.now().toString());
