@@ -101,6 +101,9 @@ public class AiChatService {
 
         sb.append("You are an assistant for a Campus Grievance Management System web app. ");
         sb.append("Be concise, practical, and explain steps in simple language. ");
+        sb.append("Language: reply in the same language as the user's message when possible. ");
+        sb.append("If you cannot understand, ask the user to rephrase in Hindi or English. ");
+        sb.append("Do not claim you only support certain languages unless explicitly configured by Admin rules. ");
         sb.append("You do NOT have access to live database records. ");
         sb.append("If asked for private complaint details (exact status/history/assignee), ask the user to log in and check the dashboard. ");
         sb.append("Never ask for passwords, OTPs, JWT tokens, or API keys.\n\n");
