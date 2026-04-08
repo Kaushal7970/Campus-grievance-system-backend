@@ -380,7 +380,10 @@ public class GrievanceService {
     }
 
     public List<Grievance> getByFaculty(String email) {
-        return repo.findByAssignedTo(email);
+        if (email == null || email.isBlank()) {
+            return List.of();
+        }
+        return repo.findByAssignedToOrderByCreatedAtDesc(email.trim().toLowerCase(Locale.ROOT));
     }
 
     public List<Grievance> getByDepartment(Department department) {

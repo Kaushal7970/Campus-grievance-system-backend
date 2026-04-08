@@ -18,6 +18,8 @@ public interface GrievanceRepository extends JpaRepository<Grievance, Long> {
     // 🔥 FACULTY
     List<Grievance> findByAssignedTo(String email);
 
+    List<Grievance> findByAssignedToOrderByCreatedAtDesc(String email);
+
     List<Grievance> findByDepartmentOrderByCreatedAtDesc(Department department);
 
     @Query("SELECT COUNT(g) FROM Grievance g WHERE LOWER(g.assignedTo) = LOWER(:email) AND UPPER(g.status) NOT IN :excluded")

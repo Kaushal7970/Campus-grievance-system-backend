@@ -147,11 +147,21 @@ public class GrievanceController {
         String email = currentEmail();
         var user = email == null ? null : userService.findByEmail(email);
         Department department = user == null ? null : user.getDepartment();
-        if (department == null) {
-            return List.of();
+
+        // Guarantee that if something is assigned to a staff member, it shows up in their dashboard,
+        // even if department is not set/mismatched for older data.
+        var assigned = (email == null || email.isBlank()) ? List.<Grievance>of() : service.getByFaculty(email);
+        var dept = (department == null) ? List.<Grievance>of() : service.getByDepartment(department);
+
+        java.util.LinkedHashMap<Long, Grievance> merged = new java.util.LinkedHashMap<>();
+        for (var g : dept) {
+            if (g != null && g.getId() != null) merged.put(g.getId(), g);
+        }
+        for (var g : assigned) {
+            if (g != null && g.getId() != null) merged.putIfAbsent(g.getId(), g);
         }
 
-        return service.getByDepartment(department).stream().map(GrievanceMapper::toView).toList();
+        return merged.values().stream().map(GrievanceMapper::toView).toList();
     }
 
     // DEPARTMENT (admin-only or self)
