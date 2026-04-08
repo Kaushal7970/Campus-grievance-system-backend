@@ -411,7 +411,39 @@ public class GrievanceService {
         Grievance g = repo.findById(id)
                 .orElseThrow(() -> new RuntimeException("Grievance not found"));
 
-        g.setAssignedTo(facultyEmail);
+        String assignee = facultyEmail == null ? null : facultyEmail.trim();
+        g.setAssignedTo(assignee);
+
+        // Ensure department is set so department-based dashboards show the complaint.
+        // This is especially important for older rows created before auto-routing existed.
+        if (g.getDepartment() == null) {
+            Department routed = null;
+            if (g.getCategory() != null) {
+                routed = categoryDepartmentMappingRepository.findByCategory(g.getCategory())
+                        .map(CategoryDepartmentMapping::getDepartment)
+                        .orElse(null);
+            }
+
+            if (routed == null && assignee != null && !assignee.isBlank()) {
+                String normalizedEmail = assignee.toLowerCase(Locale.ROOT);
+                routed = userRepository.findByEmail(normalizedEmail)
+                    .map(com.project.grievance.model.User::getDepartment)
+                    .orElse(null);
+            }
+
+            if (routed != null) {
+                g.setDepartment(routed);
+            }
+        }
+
+        // Reflect assignment in status for consistent UI filtering.
+        if (assignee != null && !assignee.isBlank()) {
+            String currentStatus = String.valueOf(g.getStatus()).toUpperCase(Locale.ROOT);
+            if ("PENDING".equals(currentStatus)) {
+                g.setStatus("ASSIGNED");
+            }
+        }
+
         g.setLastUpdatedAt(LocalDateTime.now());
         Grievance saved = repo.save(g);
         realtimePublisher.publishGrievanceEvent(id, "ASSIGNED");
