@@ -42,9 +42,31 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         try {
             Jws<Claims> jws = jwtService.parseAndValidate(token);
             String email = jws.getBody().getSubject();
+            Object tvClaim = jws.getBody().get("tv");
 
             if (email != null && SecurityContextHolder.getContext().getAuthentication() == null) {
                 UserDetails userDetails = userDetailsService.loadUserByUsername(email);
+
+                // Optional token invalidation: if user tokenVersion is bumped, old tokens become invalid.
+                int tokenVersion = 0;
+                if (tvClaim instanceof Number n) {
+                    tokenVersion = n.intValue();
+                } else if (tvClaim instanceof String s) {
+                    try {
+                        tokenVersion = Integer.parseInt(s);
+                    } catch (NumberFormatException ignored) {
+                        tokenVersion = 0;
+                    }
+                }
+
+                if (userDetails instanceof SecurityUser su) {
+                    int currentVersion = su.getUser() == null ? 0 : su.getUser().getTokenVersion();
+                    if (tokenVersion != currentVersion) {
+                        filterChain.doFilter(request, response);
+                        return;
+                    }
+                }
+
                 UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(
                         userDetails,
                         null,

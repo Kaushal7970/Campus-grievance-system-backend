@@ -3,6 +3,7 @@ package com.project.grievance.dto;
 import java.time.LocalDateTime;
 
 import com.project.grievance.enums.ComplaintCategory;
+import com.project.grievance.enums.Department;
 import com.project.grievance.enums.EscalationLevel;
 import com.project.grievance.enums.Priority;
 
@@ -17,6 +18,7 @@ public class GrievanceView {
     private String status;
     private Priority priority;
     private ComplaintCategory category;
+    private Department department;
 
     private boolean anonymous;
     private String studentEmail;
@@ -85,6 +87,14 @@ public class GrievanceView {
 
     public void setCategory(ComplaintCategory category) {
         this.category = category;
+    }
+
+    public Department getDepartment() {
+        return department;
+    }
+
+    public void setDepartment(Department department) {
+        this.department = department;
     }
 
     public boolean isAnonymous() {

@@ -3,6 +3,7 @@ package com.project.grievance.model;
 import java.time.LocalDateTime;
 
 import com.project.grievance.enums.ComplaintCategory;
+import com.project.grievance.enums.Department;
 import com.project.grievance.enums.EscalationLevel;
 import com.project.grievance.enums.Priority;
 
@@ -33,6 +34,9 @@ public class Grievance {
 
     @Enumerated(EnumType.STRING)
     private ComplaintCategory category;
+
+    @Enumerated(EnumType.STRING)
+    private Department department;
 
     private String studentEmail;
 
@@ -79,6 +83,9 @@ public class Grievance {
 
     public ComplaintCategory getCategory() { return category; }
     public void setCategory(ComplaintCategory category) { this.category = category; }
+
+    public Department getDepartment() { return department; }
+    public void setDepartment(Department department) { this.department = department; }
 
     public String getStudentEmail() { return studentEmail; }
     public void setStudentEmail(String studentEmail) { this.studentEmail = studentEmail; }

@@ -30,6 +30,7 @@ import com.project.grievance.dto.EscalationHistoryView;
 import com.project.grievance.dto.GrievanceView;
 import com.project.grievance.dto.StatusHistoryView;
 import com.project.grievance.enums.EscalationLevel;
+import com.project.grievance.enums.Department;
 import com.project.grievance.enums.Priority;
 import com.project.grievance.model.Attachment;
 import com.project.grievance.model.Grievance;
@@ -46,6 +47,7 @@ import com.project.grievance.service.GrievanceEscalationHistoryMapper;
 import com.project.grievance.service.GrievanceMapper;
 import com.project.grievance.service.GrievanceService;
 import com.project.grievance.service.GrievanceStatusHistoryMapper;
+import com.project.grievance.service.UserService;
 
 import lombok.RequiredArgsConstructor;
 
@@ -58,6 +60,7 @@ public class GrievanceController {
     private final GrievanceCollaborationService collaborationService;
     private final GrievanceStatusHistoryRepository statusHistoryRepository;
     private final GrievanceEscalationHistoryRepository escalationHistoryRepository;
+    private final UserService userService;
 
     private static String currentEmail() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
@@ -134,6 +137,40 @@ public class GrievanceController {
                 .toList();
     }
 
+    // DEPARTMENT (current user's department)
+    @GetMapping("/department/mine")
+    public List<GrievanceView> getByMyDepartment() {
+        if (!hasAnyRole("FACULTY", "WARDEN", "HOD", "PRINCIPAL", "COMMITTEE", "ADMIN", "SUPER_ADMIN")) {
+            throw new IllegalArgumentException("Access denied");
+        }
+
+        String email = currentEmail();
+        var user = email == null ? null : userService.findByEmail(email);
+        Department department = user == null ? null : user.getDepartment();
+        if (department == null) {
+            return List.of();
+        }
+
+        return service.getByDepartment(department).stream().map(GrievanceMapper::toView).toList();
+    }
+
+    // DEPARTMENT (admin-only or self)
+    @GetMapping("/department/{department}")
+    public List<GrievanceView> getByDepartment(@PathVariable String department) {
+        Department d = Department.valueOf(String.valueOf(department).toUpperCase());
+
+        if (!hasAnyRole("ADMIN", "SUPER_ADMIN")) {
+            // Staff can only query their own department.
+            String email = currentEmail();
+            var user = email == null ? null : userService.findByEmail(email);
+            if (user == null || user.getDepartment() == null || user.getDepartment() != d) {
+                throw new IllegalArgumentException("Access denied");
+            }
+        }
+
+        return service.getByDepartment(d).stream().map(GrievanceMapper::toView).toList();
+    }
+
     // SINGLE
     @GetMapping("/{id}")
     public GrievanceView getOne(@PathVariable Long id) {
@@ -205,7 +242,7 @@ public class GrievanceController {
         public CommentView addComment(@PathVariable Long id, @RequestBody CreateCommentRequest request) {
         String email = currentEmail();
         boolean internalOnly = request.isInternalOnly()
-                && hasAnyRole("FACULTY", "HOD", "COMMITTEE", "ADMIN", "SUPER_ADMIN");
+            && hasAnyRole("FACULTY", "WARDEN", "HOD", "COMMITTEE", "ADMIN", "SUPER_ADMIN");
         GrievanceComment saved = collaborationService.addComment(
                 id,
                 email == null ? "UNKNOWN" : email,
@@ -217,7 +254,7 @@ public class GrievanceController {
 
     @GetMapping("/{id}/comments")
     public List<CommentView> listComments(@PathVariable Long id) {
-        boolean privileged = hasAnyRole("FACULTY", "HOD", "COMMITTEE", "ADMIN", "SUPER_ADMIN");
+        boolean privileged = hasAnyRole("FACULTY", "WARDEN", "HOD", "COMMITTEE", "ADMIN", "SUPER_ADMIN");
         return collaborationService.listComments(id)
                 .stream()
                 .filter(c -> privileged || !c.isInternalOnly())

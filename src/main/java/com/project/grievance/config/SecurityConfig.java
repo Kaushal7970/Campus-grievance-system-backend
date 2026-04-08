@@ -108,6 +108,9 @@ public class SecurityConfig {
                 .requestMatchers(new AntPathRequestMatcher("/api/users/*/update", "PUT")).authenticated()
                 .requestMatchers(new AntPathRequestMatcher("/api/users/*/change-password", "PUT")).authenticated()
 
+                // Self profile (advanced)
+                .requestMatchers(new AntPathRequestMatcher("/api/users/me/**")).authenticated()
+
                 .requestMatchers(new AntPathRequestMatcher("/api/users")).hasAnyRole("ADMIN", "SUPER_ADMIN")
 
                 // Faculty dropdown for assignment (should not require full user management)
@@ -126,13 +129,13 @@ public class SecurityConfig {
 
                 // Grievance RBAC
                 .requestMatchers(new AntPathRequestMatcher("/api/grievance/all", "GET")).hasAnyRole("ADMIN", "SUPER_ADMIN", "HOD", "PRINCIPAL", "COMMITTEE")
-                .requestMatchers(new AntPathRequestMatcher("/api/grievance/faculty/**", "GET")).hasAnyRole("FACULTY", "HOD", "COMMITTEE", "ADMIN", "SUPER_ADMIN")
+                .requestMatchers(new AntPathRequestMatcher("/api/grievance/faculty/**", "GET")).hasAnyRole("FACULTY", "WARDEN", "HOD", "COMMITTEE", "ADMIN", "SUPER_ADMIN")
                 // Student and general grievance endpoints should work for any authenticated user.
                 // Fine-grained access is enforced in controllers (e.g., only owner can view their own grievances).
                 .requestMatchers(new AntPathRequestMatcher("/api/grievance/**")).authenticated()
                 .requestMatchers(new AntPathRequestMatcher("/api/grievance/assign/**", "PUT")).hasAnyRole("HOD", "PRINCIPAL", "COMMITTEE", "ADMIN", "SUPER_ADMIN")
-                .requestMatchers(new AntPathRequestMatcher("/api/grievance/update/**", "PUT")).hasAnyRole("FACULTY", "HOD", "PRINCIPAL", "COMMITTEE", "ADMIN", "SUPER_ADMIN")
-                .requestMatchers(new AntPathRequestMatcher("/api/grievance/update-with-remarks/**", "PUT")).hasAnyRole("FACULTY", "HOD", "PRINCIPAL", "COMMITTEE", "ADMIN", "SUPER_ADMIN")
+                .requestMatchers(new AntPathRequestMatcher("/api/grievance/update/**", "PUT")).hasAnyRole("FACULTY", "WARDEN", "HOD", "PRINCIPAL", "COMMITTEE", "ADMIN", "SUPER_ADMIN")
+                .requestMatchers(new AntPathRequestMatcher("/api/grievance/update-with-remarks/**", "PUT")).hasAnyRole("FACULTY", "WARDEN", "HOD", "PRINCIPAL", "COMMITTEE", "ADMIN", "SUPER_ADMIN")
                 .requestMatchers(new AntPathRequestMatcher("/api/grievance/*/escalate", "POST")).hasAnyRole("HOD", "PRINCIPAL", "ADMIN", "SUPER_ADMIN")
                 .requestMatchers(new AntPathRequestMatcher("/api/grievance/*/comments", "POST")).authenticated()
                 .requestMatchers(new AntPathRequestMatcher("/api/grievance/*/comments", "GET")).authenticated()

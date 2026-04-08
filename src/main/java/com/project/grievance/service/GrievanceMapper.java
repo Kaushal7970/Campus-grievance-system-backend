@@ -16,6 +16,7 @@ public final class GrievanceMapper {
         v.setStatus(grievance.getStatus());
         v.setPriority(grievance.getPriority());
         v.setCategory(grievance.getCategory());
+        v.setDepartment(grievance.getDepartment());
         v.setAnonymous(grievance.isAnonymous());
         v.setStudentEmail(grievance.getStudentEmail());
         v.setAssignedTo(grievance.getAssignedTo());

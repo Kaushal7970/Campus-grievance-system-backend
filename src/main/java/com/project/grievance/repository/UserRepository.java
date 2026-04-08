@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import com.project.grievance.model.User;
+import com.project.grievance.enums.Department;
 
 public interface UserRepository extends JpaRepository<User, Long> {
 
@@ -17,4 +18,10 @@ public interface UserRepository extends JpaRepository<User, Long> {
     List<User> findByRoleIgnoreCase(String role);
 
     Optional<User> findFirstByRoleIgnoreCaseOrderByIdAsc(String role);
+
+    @Query("SELECT u FROM User u WHERE u.department = :department AND UPPER(u.role) <> 'STUDENT' ORDER BY u.id ASC")
+    List<User> findAssignableByDepartmentOrderByIdAsc(@Param("department") Department department);
+
+    @Query("SELECT u FROM User u WHERE u.department = :department AND UPPER(u.role) <> 'STUDENT' AND UPPER(u.role) = UPPER(:role) ORDER BY u.id ASC")
+    List<User> findAssignableByDepartmentAndRoleOrderByIdAsc(@Param("department") Department department, @Param("role") String role);
 }

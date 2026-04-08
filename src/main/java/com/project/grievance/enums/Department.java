@@ -1,10 +1,9 @@
 package com.project.grievance.enums;
 
-public enum ComplaintCategory {
-    ACADEMIC,
+public enum Department {
     HOSTEL,
     INFRASTRUCTURE,
     ELECTRICITY,
-    FACULTY_BEHAVIOR,
+    ACADEMIC,
     ADMINISTRATION
 }

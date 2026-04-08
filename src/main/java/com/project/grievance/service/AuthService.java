@@ -60,6 +60,7 @@ public class AuthService {
         user.setEmail(email);
         user.setRole(role);
         user.setPassword(passwordEncoder.encode(request.getPassword()));
+        user.setPhoneNumber(request.getPhoneNumber());
 
         return userRepository.save(user);
     }
@@ -90,13 +91,24 @@ public class AuthService {
         user.setLastLoginAt(now);
         userRepository.save(user);
 
-        String token = jwtService.generateAccessToken(user.getEmail(), List.of(user.getRole().toUpperCase()));
+        String token = jwtService.generateAccessToken(
+            user.getEmail(),
+            List.of(user.getRole().toUpperCase()),
+            user.getTokenVersion()
+        );
 
         AuthResponse response = new AuthResponse();
         response.setId(user.getId());
         response.setToken(token);
         response.setRole(user.getRole());
         response.setEmail(user.getEmail());
+        response.setPhoneNumber(user.getPhoneNumber());
+        response.setName(user.getName());
+        response.setDepartment(user.getDepartment() == null ? null : String.valueOf(user.getDepartment()));
+        response.setAvatarUrl(user.getAvatarUrl());
+        response.setSmsNotificationsEnabled(user.isSmsNotificationsEnabled());
+        response.setEmailNotificationsEnabled(user.isEmailNotificationsEnabled());
+        response.setThemeId(user.getThemeId());
         return response;
     }
 
@@ -127,6 +139,7 @@ public class AuthService {
         }
 
         user.setPassword(passwordEncoder.encode(request.getNewPassword()));
+        user.setTokenVersion(user.getTokenVersion() + 1);
         userRepository.save(user);
     }
 }

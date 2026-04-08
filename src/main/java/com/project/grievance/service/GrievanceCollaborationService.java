@@ -72,7 +72,7 @@ public class GrievanceCollaborationService {
         String studentEmail = grievance.getStudentEmail();
         if (studentEmail == null || studentEmail.isBlank()) return;
 
-        boolean isStaff = hasAnyRole("FACULTY", "HOD", "PRINCIPAL", "COMMITTEE", "ADMIN", "SUPER_ADMIN");
+        boolean isStaff = hasAnyRole("FACULTY", "WARDEN", "HOD", "PRINCIPAL", "COMMITTEE", "ADMIN", "SUPER_ADMIN");
         if (!isStaff) return;
 
         String code = grievance.getComplaintCode() != null && !grievance.getComplaintCode().isBlank()

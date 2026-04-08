@@ -6,6 +6,7 @@ import java.util.EnumMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
@@ -13,10 +14,13 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
 import com.project.grievance.config.EscalationProperties;
+import com.project.grievance.enums.Department;
 import com.project.grievance.enums.EscalationLevel;
+import com.project.grievance.model.CategoryDepartmentMapping;
 import com.project.grievance.model.Grievance;
 import com.project.grievance.model.GrievanceEscalationHistory;
 import com.project.grievance.model.GrievanceStatusHistory;
+import com.project.grievance.repository.CategoryDepartmentMappingRepository;
 import com.project.grievance.repository.AttachmentRepository;
 import com.project.grievance.repository.GrievanceChatMessageRepository;
 import com.project.grievance.repository.GrievanceCommentRepository;
@@ -42,8 +46,12 @@ public class GrievanceService {
     private final NotificationRepository notificationRepository;
     private final GrievanceRealtimePublisher realtimePublisher;
     private final NotificationService notificationService;
+    private final SmsNotificationService smsNotificationService;
     private final UserRepository userRepository;
+    private final CategoryDepartmentMappingRepository categoryDepartmentMappingRepository;
     private final EscalationProperties escalationProperties;
+
+    private static final List<String> ACTIVE_EXCLUDED_STATUSES = List.of("RESOLVED", "CLOSED");
 
     private static final Map<EscalationLevel, String> ESCALATION_STATUS = new EnumMap<>(EscalationLevel.class);
 
@@ -99,7 +107,7 @@ public class GrievanceService {
         String studentEmail = g.getStudentEmail();
         if (studentEmail == null || studentEmail.isBlank()) return;
 
-        boolean isStaff = hasAnyRole("FACULTY", "HOD", "PRINCIPAL", "COMMITTEE", "ADMIN", "SUPER_ADMIN");
+        boolean isStaff = hasAnyRole("FACULTY", "WARDEN", "HOD", "PRINCIPAL", "COMMITTEE", "ADMIN", "SUPER_ADMIN");
         if (!isStaff) return;
 
         String code = complaintCodeOrId(g);
@@ -146,6 +154,11 @@ public class GrievanceService {
 
     public Grievance save(Grievance g) {
         boolean isNew = g.getId() == null;
+
+        if (isNew) {
+            autoRouteAndAssignIfPossible(g);
+        }
+
         if (g.getCreatedAt() == null) {
             g.setCreatedAt(LocalDateTime.now());
         }
@@ -174,11 +187,74 @@ public class GrievanceService {
             recordStatusChange(saved, null, saved.getStatus(), saved.getStudentEmail(), "Created");
             realtimePublisher.publishGrievanceEvent(saved.getId(), "CREATED");
             notifyAdminsNewComplaintIfStudentCreated(saved);
+
+            // SMS notifications (best-effort)
+            smsNotificationService.onComplaintSubmitted(saved);
+            if (saved.getAssignedTo() != null && !saved.getAssignedTo().isBlank()) {
+                smsNotificationService.onComplaintAssigned(saved);
+            }
         } else {
             realtimePublisher.publishGrievanceEvent(saved.getId(), "UPDATED");
         }
 
         return saved;
+    }
+
+    private void autoRouteAndAssignIfPossible(Grievance g) {
+        if (g == null || g.getCategory() == null) {
+            return;
+        }
+
+        var mappingOpt = categoryDepartmentMappingRepository.findByCategory(g.getCategory());
+        if (mappingOpt.isEmpty()) {
+            return;
+        }
+
+        CategoryDepartmentMapping mapping = mappingOpt.get();
+        Department department = mapping.getDepartment();
+        if (department == null) {
+            return;
+        }
+
+        // Always store the computed department for filtering.
+        g.setDepartment(department);
+
+        // If already assigned (manual / seeded), don't override.
+        if (g.getAssignedTo() != null && !g.getAssignedTo().isBlank()) {
+            return;
+        }
+
+        String preferredRole = mapping.getTargetRole();
+        List<com.project.grievance.model.User> candidates = (preferredRole == null || preferredRole.isBlank())
+                ? userRepository.findAssignableByDepartmentOrderByIdAsc(department)
+                : userRepository.findAssignableByDepartmentAndRoleOrderByIdAsc(department, preferredRole);
+
+        if (candidates == null || candidates.isEmpty()) {
+            return;
+        }
+
+        com.project.grievance.model.User best = null;
+        long bestOpenCount = Long.MAX_VALUE;
+
+        for (var u : candidates) {
+            String email = u == null ? null : u.getEmail();
+            if (email == null || email.isBlank()) {
+                continue;
+            }
+            long openCount = repo.countActiveAssignedToExcludingStatuses(email, ACTIVE_EXCLUDED_STATUSES);
+            if (best == null || openCount < bestOpenCount) {
+                best = u;
+                bestOpenCount = openCount;
+            }
+        }
+
+        if (best != null && best.getEmail() != null && !best.getEmail().isBlank()) {
+            g.setAssignedTo(best.getEmail());
+            // A small UX improvement: reflect assignment in initial status.
+            if (Objects.equals(String.valueOf(g.getStatus()).toUpperCase(Locale.ROOT), "PENDING")) {
+                g.setStatus("ASSIGNED");
+            }
+        }
     }
 
     public Grievance escalate(Long id, EscalationLevel toLevel, String byEmail, boolean automatic, String reason) {
@@ -222,6 +298,7 @@ public class GrievanceService {
         realtimePublisher.publishGrievanceEvent(id, "ESCALATED");
 
         notifyStudentIfStaffUpdated(saved, "Escalated to " + toLevel);
+        smsNotificationService.onEscalated(saved, toLevel);
 
         String code = saved.getComplaintCode() == null ? String.valueOf(saved.getId()) : saved.getComplaintCode();
         String msg = "Grievance " + code + " escalated to " + toLevel;
@@ -306,6 +383,13 @@ public class GrievanceService {
         return repo.findByAssignedTo(email);
     }
 
+    public List<Grievance> getByDepartment(Department department) {
+        if (department == null) {
+            return List.of();
+        }
+        return repo.findByDepartmentOrderByCreatedAtDesc(department);
+    }
+
     public Grievance updateStatus(Long id, String status) {
         Grievance g = repo.findById(id)
                 .orElseThrow(() -> new RuntimeException("Grievance not found"));
@@ -318,6 +402,7 @@ public class GrievanceService {
         realtimePublisher.publishGrievanceEvent(id, "STATUS_CHANGED");
 
         notifyStudentIfStaffUpdated(saved, "Status changed to " + status);
+        smsNotificationService.onStatusUpdated(saved, status);
         return saved;
     }
 
@@ -335,6 +420,10 @@ public class GrievanceService {
             notifyStudentIfStaffUpdated(saved, "Assigned to " + facultyEmail);
         } else {
             notifyStudentIfStaffUpdated(saved, "Assignment updated");
+        }
+
+        if (facultyEmail != null && !facultyEmail.isBlank()) {
+            smsNotificationService.onComplaintAssigned(saved);
         }
         return saved;
     }
@@ -364,6 +453,7 @@ public class GrievanceService {
             summary = "Status: " + status;
         }
         notifyStudentIfStaffUpdated(saved, summary);
+        smsNotificationService.onStatusUpdated(saved, status);
         return saved;
     }
 

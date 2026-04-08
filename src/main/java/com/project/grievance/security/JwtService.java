@@ -33,6 +33,10 @@ public class JwtService {
     }
 
     public String generateAccessToken(String userEmail, List<String> roles) {
+        return generateAccessToken(userEmail, roles, 0);
+    }
+
+    public String generateAccessToken(String userEmail, List<String> roles, int tokenVersion) {
         Instant now = Instant.now();
         Instant exp = now.plusSeconds(accessTokenTtlSeconds);
 
@@ -40,6 +44,7 @@ public class JwtService {
                     .issuer(issuer)
                     .subject(userEmail)
                 .claim("roles", roles)
+                .claim("tv", Math.max(0, tokenVersion))
                     .issuedAt(Date.from(now))
                     .expiration(Date.from(exp))
                     .signWith(secretKey)
