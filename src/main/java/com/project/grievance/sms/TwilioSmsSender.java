@@ -11,6 +11,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
+import org.springframework.web.client.RestClientResponseException;
 import org.springframework.web.client.RestTemplate;
 
 public class TwilioSmsSender implements SmsSender {
@@ -54,12 +55,28 @@ public class TwilioSmsSender implements SmsSender {
         form.add("From", fromNumber);
         form.add("Body", message);
 
-        ResponseEntity<String> response = restTemplate.postForEntity(uri.toString(), new HttpEntity<>(form, headers), String.class);
-        int status = response.getStatusCode().value();
-        if (status < 200 || status >= 300) {
-            throw new IllegalStateException("Twilio SMS failed with status " + status);
-        }
+        try {
+            ResponseEntity<String> response = restTemplate.postForEntity(uri.toString(), new HttpEntity<>(form, headers), String.class);
+            int status = response.getStatusCode().value();
+            if (status < 200 || status >= 300) {
+                throw new IllegalStateException("Twilio SMS failed with status " + status);
+            }
 
-        log.debug("Twilio SMS sent to {} status={}", toE164, status);
+            log.debug("Twilio SMS sent to {} status={}", toE164, status);
+        } catch (RestClientResponseException e) {
+            String body = e.getResponseBodyAsString();
+            if (body == null) {
+                body = "";
+            }
+            body = body.replace('\n', ' ').replace('\r', ' ').trim();
+            if (body.length() > 500) {
+                body = body.substring(0, 500) + "…";
+            }
+            throw new IllegalStateException(
+                    "Twilio SMS failed status=" + e.getRawStatusCode() +
+                            (body.isBlank() ? "" : (" body=" + body)),
+                    e
+            );
+        }
     }
 }
