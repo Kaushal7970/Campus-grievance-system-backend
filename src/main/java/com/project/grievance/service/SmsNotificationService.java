@@ -22,7 +22,14 @@ public class SmsNotificationService {
     public void onComplaintSubmitted(Grievance g) {
         if (g == null) return;
         String code = complaintCodeOrId(g);
-        String msg = "Complaint " + code + " submitted. We'll update you.";
+        String msg = "Complaint " + code + " submitted successfully.";
+        smsService.sendSafe(phoneOfUserEmail(g.getStudentEmail()), msg);
+    }
+
+    public void onComplaintUpdated(Grievance g) {
+        if (g == null) return;
+        String code = complaintCodeOrId(g);
+        String msg = "Complaint " + code + " updated.";
         smsService.sendSafe(phoneOfUserEmail(g.getStudentEmail()), msg);
     }
 

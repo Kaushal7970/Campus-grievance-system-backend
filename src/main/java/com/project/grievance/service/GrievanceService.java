@@ -20,8 +20,8 @@ import com.project.grievance.model.CategoryDepartmentMapping;
 import com.project.grievance.model.Grievance;
 import com.project.grievance.model.GrievanceEscalationHistory;
 import com.project.grievance.model.GrievanceStatusHistory;
-import com.project.grievance.repository.CategoryDepartmentMappingRepository;
 import com.project.grievance.repository.AttachmentRepository;
+import com.project.grievance.repository.CategoryDepartmentMappingRepository;
 import com.project.grievance.repository.GrievanceChatMessageRepository;
 import com.project.grievance.repository.GrievanceCommentRepository;
 import com.project.grievance.repository.GrievanceEscalationHistoryRepository;
@@ -155,6 +155,20 @@ public class GrievanceService {
     public Grievance save(Grievance g) {
         boolean isNew = g.getId() == null;
 
+        // For updates done through this method (e.g., editing complaint details),
+        // capture previous values so we can send an appropriate SMS.
+        String prevStatus = null;
+        String prevAssignedTo = null;
+        EscalationLevel prevEscalationLevel = null;
+        if (!isNew) {
+            Grievance existing = repo.findById(g.getId()).orElse(null);
+            if (existing != null) {
+                prevStatus = existing.getStatus();
+                prevAssignedTo = existing.getAssignedTo();
+                prevEscalationLevel = existing.getEscalationLevel();
+            }
+        }
+
         if (isNew) {
             autoRouteAndAssignIfPossible(g);
         }
@@ -195,6 +209,26 @@ public class GrievanceService {
             }
         } else {
             realtimePublisher.publishGrievanceEvent(saved.getId(), "UPDATED");
+
+            // SMS notifications for any update path that goes through save().
+            // Prefer specific notifications when we can detect key changes.
+            String nowAssignedTo = saved.getAssignedTo();
+            String nowStatus = saved.getStatus();
+            EscalationLevel nowEscalationLevel = saved.getEscalationLevel();
+
+            boolean assignedChanged = !Objects.equals(prevAssignedTo, nowAssignedTo);
+            boolean statusChanged = !Objects.equals(prevStatus, nowStatus);
+            boolean escalationChanged = !Objects.equals(prevEscalationLevel, nowEscalationLevel);
+
+            if (assignedChanged && nowAssignedTo != null && !nowAssignedTo.isBlank()) {
+                smsNotificationService.onComplaintAssigned(saved);
+            } else if (statusChanged && nowStatus != null && !nowStatus.isBlank()) {
+                smsNotificationService.onStatusUpdated(saved, nowStatus);
+            } else if (escalationChanged && nowEscalationLevel != null) {
+                smsNotificationService.onEscalated(saved, nowEscalationLevel);
+            } else {
+                smsNotificationService.onComplaintUpdated(saved);
+            }
         }
 
         return saved;
